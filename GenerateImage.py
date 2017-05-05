@@ -1,16 +1,18 @@
-import urllib.request
-from socket import timeout
+from urllib import request, parse
 from urllib.error import HTTPError, URLError
+from socket import timeout
 
 from PIL import Image
 # TODO: Send HTTP requests asynchronously?
 
 
 class APIRequest:
-    def __init__(self, url):
-        self.url = url
-        # TODO: Add customisable param tuples using urllib.urlencode instead of hardcoding into url
-        return
+    def __init__(self, base_url, params):
+        self.base_url = base_url
+        self.params = params
+
+    def get_url(self):
+        return self.base_url + '?' + parse.urlencode(self.params)
 
 
 def main():
@@ -58,9 +60,14 @@ def generate_int_values(rand_min, rand_max, num_generated):
         else:
             num_to_request = 10000
 
-        response = send_request(APIRequest('https://www.random.org/integers/?min=' + str(rand_min) + '&max='
-                                           + str(rand_max) + '&num=' + str(num_to_request)
-                                           + '&col=1&format=plain&base=10&rnd=new'))
+        response = send_request(APIRequest('https://www.random.org/integers/',
+                                           {'min': str(rand_min),
+                                            'max': str(rand_max),
+                                            'num': str(num_to_request),
+                                            'col': '1',
+                                            'format':'plain',
+                                            'base':'10',
+                                            'rnd':'new'}))
 
         output = output + ' ' + response
 
@@ -71,18 +78,18 @@ def generate_int_values(rand_min, rand_max, num_generated):
 
 # Returns the count of how many bits I'm still allowed to request today
 def check_quota():
-    response = send_request(APIRequest('https://www.random.org/quota/?format=plain'))
+    response = send_request(APIRequest('https://www.random.org/quota/', {'format': 'plain'}))
     decoded = int(response)
     return decoded > 0
 
 
-def send_request(request):
+def send_request(req):
     try:
-        return urllib.request.urlopen(request.url, timeout=300).read().decode('utf-8')
+        return request.urlopen(req.get_url(), timeout=300).read().decode('utf-8')
     except (HTTPError, URLError) as error:
-        print('Request for ' + request.url + ' caused an error!\n' + error)
+        print('Request for ' + req.get_url() + ' caused an error!\n' + str(error))
     except timeout:
-        print('Request for ' + request.url + ' timed out!')
+        print('Request for ' + req.get_url() + ' timed out!')
 
 
 if __name__ == '__main__':
