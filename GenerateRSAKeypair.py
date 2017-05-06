@@ -1,14 +1,20 @@
 from urllib import request, parse
 from urllib.error import HTTPError, URLError
 from socket import timeout
-
-from PIL import Image
-
+from math import gcd
+import sympy
+import random
 
 # HTTP request timeout, in seconds.
 TIMEOUT = 300
+
 # Can request a maximum of 10,000 numbers at a time via the API, so loop and split the request until we have enough
 MAX_NUMBERS_IN_REQUEST = 10000
+
+# Thanks to https://stackoverflow.com/questions/13427890/how-can-i-find-all-prime-numbers-in-a-given-range
+MIN_PRIME = 5
+MAX_PRIME = 25
+PRIMES = list(sympy.sieve.primerange(MIN_PRIME, MAX_PRIME))
 
 
 class APIRequest:
@@ -23,19 +29,20 @@ class APIRequest:
 def main():
     # Random.org's API has a quota of how much data you're allowed to use. If exceeded, all requests will return 503
     #if check_quota():
-        #print('Quota is fine, proceeding with RSA Keypair generation')
-        keypair = generate_rsa()
-        print(keypair)
+    #    print('Quota is fine, proceeding with RSA Keypair generation')
+    keypair = generate_rsa()
+    print(keypair)
     #else:
-        #print('Quota exceeded, not sending a request')
+    #    print('Quota exceeded, not sending a request')
 
 
 # Thanks to https://simple.wikipedia.org/wiki/RSA_(algorithm)
+# And https://asecuritysite.com/Encryption/rsa
 def generate_rsa():
-    p = 11  # TODO: Just example values for now
+    p = generate_p()
     print('p is ' + str(p))
 
-    q = 3  # Will replace with larger ones from random.org API later
+    q = generate_q()
     print('q is ' + str(q))
 
     n = p * q
@@ -44,10 +51,33 @@ def generate_rsa():
     totient = (p - 1) * (q - 1)
     print('Totient is ' + str(totient))
 
-    e = 3  # See Step 4 note on Wikipedia page
+    e = generate_e(totient)
+    print('e is ' + str(e))
+
     d = generate_d(totient, e)
 
     return [{'Public', (n, e)}, {'Private', (n, d)}]
+
+
+# Unfortunately, I exceeded my random.org API request quota while testing the image generation
+# But I'll try to get it working using the built-in Python random package
+def generate_p():
+    return random.choice(PRIMES)
+
+
+def generate_q():
+    return random.choice(PRIMES)
+
+
+def generate_e(totient):
+    e = 2
+
+    while gcd(e, totient) > 1:
+        if e == totient:
+            raise Exception('Could not generate e! Generated values for p and q were poor. Please run this tool again.')
+        e += 1
+
+    return e
 
 
 def generate_d(totient, e):
