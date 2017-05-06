@@ -1,3 +1,6 @@
+# TODO: Convert this to get numbers from random.org rather than sympy
+# TODO: Optimise all functions - many will take a VERY long time on large inputs, especially generate_d()
+
 from urllib import request, parse
 from urllib.error import HTTPError, URLError
 from socket import timeout
