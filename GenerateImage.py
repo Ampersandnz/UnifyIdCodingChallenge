@@ -3,7 +3,14 @@ from urllib.error import HTTPError, URLError
 from socket import timeout
 
 from PIL import Image
-# TODO: Send HTTP requests asynchronously?
+
+
+# HTTP request timeout, in seconds.
+TIMEOUT = 300
+# Can request a maximum of 10,000 numbers at a time via the API, so loop and split the request until we have enough
+MAX_NUMBERS_IN_REQUEST = 10000
+WIDTH = 128
+HEIGHT = 128
 
 
 class APIRequest:
@@ -18,13 +25,14 @@ class APIRequest:
 def main():
     # Random.org's API has a quota of how much data you're allowed to use. If exceeded, all requests will return 503
     if check_quota():
-        print('Quota is fine')
-        generate_random_image(128, 128)
+        print('Quota is fine, proceeding with image generation')
+        generate_random_image(WIDTH, HEIGHT)
     else:
         print('Quota exceeded, not sending a request')
 
 
 def generate_random_image(width, height):
+    print('Generating a random image of size ' + str(width) + 'x' + str(height))
     num_pixels = width * height
 
     # Generate three random values per pixel in the image
@@ -50,28 +58,26 @@ def generate_random_image(width, height):
     image.save('Output.bmp', 'bmp')
 
 
-def generate_int_values(rand_min, rand_max, num_generated):
+def generate_int_values(rand_min, rand_max, num_to_generate):
     output = ''
 
-    # Can request a maximum of 10,000 numbers at a time via the API, so loop and split the request until we have enough
-    while num_generated != 0:
-        if num_generated < 10000:
-            num_to_request = num_generated
-        else:
-            num_to_request = 10000
+    while num_to_generate != 0:
+        num_to_request = num_to_generate if num_to_generate < MAX_NUMBERS_IN_REQUEST else MAX_NUMBERS_IN_REQUEST
+
+        print('Requesting ' + str(num_to_request) + ' random integers')
 
         response = send_request(APIRequest('https://www.random.org/integers/',
                                            {'min': str(rand_min),
                                             'max': str(rand_max),
                                             'num': str(num_to_request),
                                             'col': '1',
-                                            'format':'plain',
-                                            'base':'10',
-                                            'rnd':'new'}))
+                                            'format': 'plain',
+                                            'base': '10',
+                                            'rnd': 'new'}))
 
         output = output + ' ' + response
 
-        num_generated -= num_to_request
+        num_to_generate -= num_to_request
 
     return list(map(int, output.split()))
 
@@ -83,9 +89,11 @@ def check_quota():
     return decoded > 0
 
 
+# Considered doing this asynchronously, but there's no point at the moment
+# since the tool can't do anything until it hears back anyway
 def send_request(req):
     try:
-        return request.urlopen(req.get_url(), timeout=300).read().decode('utf-8')
+        return request.urlopen(req.get_url(), timeout=TIMEOUT).read().decode('utf-8')
     except (HTTPError, URLError) as error:
         print('Request for ' + req.get_url() + ' caused an error!\n' + str(error))
     except timeout:
